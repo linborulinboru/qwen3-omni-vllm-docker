@@ -1,0 +1,90 @@
+services:
+  qwen3-omni-instruct:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: qwen3-omni-vllm:instruct
+    container_name: qwen3-omni-30b-a3b-instruct
+    restart: unless-stopped
+    ports:
+      - "8901:8901"
+    volumes:
+      - "./app:/app"
+      - "./app/models:/models"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    environment:
+      - HF_HUB_OFFLINE=1
+      - TRANSFORMERS_OFFLINE=1
+      - VLLM_USE_FLASHINFER_SAMPLER=0
+      - TORCH_CUDA_ARCH_LIST=12.0
+    ipc: host
+    ulimits:
+      memlock: -1
+      stack: 67108864
+    networks:
+      local-cloud:
+        aliases:
+          - qwen3-omni-30b-a3b-instruct
+    command:
+      - "/models"
+      - "--dtype"
+      - "float16"
+      - "--port"
+      - "8901"
+      - "--host"
+      - "0.0.0.0"
+      - "--max-model-len"
+      - "32768"
+      - "--gpu-memory-utilization"
+      - "0.8"
+      - "--enforce-eager"
+      - "-tp"
+      - "1"
+      - "--seed"
+      - "42"
+      - "--enable-auto-tool-choice"
+      - "--tool-call-parser"
+      - "hermes"
+      - "--chat-template"
+      - "/opt/vllm/chat-template.jinja2"
+      - "--allowed-local-media-path"
+      - "/data"
+      - "--media-io-kwargs"
+      - '{"video":{"num_frames":-1}}'
+      - "--mm-encoder-attn-backend"
+      - "TORCH_SDPA"
+
+  qwen3-omni-serve:
+    build:
+      context: .
+      dockerfile: Dockerfile.serve
+    image: qwen3-omni-serve:latest
+    container_name: qwen3-omni-serve
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      - "./app:/app"
+    environment:
+      - VLLM_BASE_URL=http://qwen3-omni-30b-a3b-instruct:8901/v1
+      - VLLM_MODEL=/models
+      - SEGMENT_DURATION=60
+      - MAX_TOKENS=8192
+      - TEMPERATURE=0
+    depends_on:
+      - qwen3-omni-instruct
+    networks:
+      local-cloud:
+        aliases:
+          - qwen3-omni-serve
+
+networks:
+  local-cloud:
+    name: local-cloud
+    driver: bridge

@@ -1,17 +1,23 @@
-FROM aimehub/pytorch-2.8.0-aime-cuda12.8.1
+FROM nvidia/cuda:13.0.0-devel-ubuntu22.04
 
-# vLLM for Qwen3 Omni
-RUN git clone -b qwen3_omni https://github.com/wangxiongts/vllm.git /opt/vllm
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 python3-pip python3-dev curl git && \
+    ln -sf /usr/bin/python3 /usr/bin/python && \
+    rm -rf /var/lib/apt/lists/*
+
+# PyTorch with CUDA 13.0, then vLLM + Qwen3-Omni extras
+RUN pip install --no-cache-dir \
+    torch torchvision torchaudio \
+    --index-url https://download.pytorch.org/whl/cu130
+
+RUN pip install --no-cache-dir vllm
+
+RUN pip install --no-cache-dir \
+    "git+https://github.com/huggingface/transformers" \
+    accelerate qwen-omni-utils -U
+
+RUN mkdir -p /opt/vllm
 WORKDIR /opt/vllm
-RUN pip install --break-system-packages -r requirements/build.txt && \
-    pip install --break-system-packages -r requirements/cuda.txt && \
-    export VLLM_PRECOMPILED_WHEEL_LOCATION="https://wheels.vllm.ai/a5dd03c1ebc5e4f56f3c9d3dc0436e9c582c978f/vllm-0.9.2-cp38-abi3-manylinux1_x86_64.whl" && \
-    VLLM_USE_PRECOMPILED=1 pip install --break-system-packages -e . -v --no-build-isolation || pip install --break-system-packages -e . -v
-
-# Extras
-RUN pip install --break-system-packages "git+https://github.com/huggingface/transformers" \
-    accelerate qwen-omni-utils -U \
-    "flash-attn>=2.6.0" --no-build-isolation
 
 # Set Hugging Face caches to /models (the mounted volume)
 ENV HF_HOME=/models \
@@ -21,7 +27,7 @@ ENV HF_HOME=/models \
 # Create data directory for multimodal files
 RUN mkdir -p /data
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=300s --retries=5 \
   CMD curl -f http://localhost:8901/health || exit 1
 
 COPY chat-template.jinja2 /opt/vllm/chat-template.jinja2
