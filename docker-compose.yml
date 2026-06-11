@@ -21,7 +21,6 @@ services:
     environment:
       - HF_HUB_OFFLINE=1
       - TRANSFORMERS_OFFLINE=1
-      - VLLM_USE_FLASHINFER_SAMPLER=0
       - TORCH_CUDA_ARCH_LIST=12.0
     ipc: host
     ulimits:
@@ -40,14 +39,13 @@ services:
       - "--host"
       - "0.0.0.0"
       - "--max-model-len"
-      - "32768"
+      - "8192"
       - "--gpu-memory-utilization"
-      - "0.8"
-      - "--enforce-eager"
+      - "0.80"
       - "-tp"
       - "1"
       - "--seed"
-      - "42"
+      - "1"
       - "--enable-auto-tool-choice"
       - "--tool-call-parser"
       - "hermes"
@@ -59,6 +57,8 @@ services:
       - '{"video":{"num_frames":-1}}'
       - "--mm-encoder-attn-backend"
       - "TORCH_SDPA"
+      - "--safetensors-load-strategy"
+      - "prefetch"
 
   qwen3-omni-serve:
     build:
@@ -75,8 +75,9 @@ services:
       - VLLM_BASE_URL=http://qwen3-omni-30b-a3b-instruct:8901/v1
       - VLLM_MODEL=/models
       - SEGMENT_DURATION=60
-      - MAX_TOKENS=8192
+      - MAX_TOKENS=4096
       - TEMPERATURE=0
+      - CONCURRENT_SEGMENTS=8
     depends_on:
       - qwen3-omni-instruct
     networks:

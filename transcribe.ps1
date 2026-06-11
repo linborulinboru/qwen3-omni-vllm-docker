@@ -50,6 +50,9 @@ while ($true) {
 }
 Write-Host ""
 
+# Timer starts here — initialization / API health-wait above is excluded
+$swatch  = [System.Diagnostics.Stopwatch]::StartNew()
+
 $found   = 0
 $success = 0
 $failed  = 0
@@ -82,7 +85,11 @@ if ($found -eq 0) {
     Write-Host ""
 }
 
+$swatch.Stop()
+$ts = $swatch.Elapsed
+
 Write-Host "============================================================"
 Write-Host " Done.  Success: $success   Failed: $failed"
+Write-Host (" Transcription time: {0:hh\:mm\:ss}  ({1:N1}s, init wait excluded)" -f $ts, $ts.TotalSeconds)
 Write-Host "============================================================"
 Read-Host "Press Enter to exit"
