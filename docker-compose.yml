@@ -78,6 +78,8 @@ services:
       - MAX_TOKENS=4096
       - TEMPERATURE=0
       - CONCURRENT_SEGMENTS=8
+      - MAX_INFLIGHT=32
+      - FORMAT_PASS=1
     depends_on:
       - qwen3-omni-instruct
     networks:
